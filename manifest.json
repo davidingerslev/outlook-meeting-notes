@@ -1,7 +1,7 @@
 {
 	"id": "outlook-meeting-notes",
 	"name": "Outlook Meeting Notes",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"minAppVersion": "1.8.9",
 	"description": "Creates meeting notes for Outlook appointments and meetings.",
 	"author": "David Ingerslev",

@@ -26,13 +26,15 @@ interface OutlookMeetingNotesSettings {
 	invalidFilenameCharReplacement: string;
 	fileNamePattern: string;
 	notesTemplate: string;
+	recipientsAsWikiLinks: boolean;
 }
 
 const DEFAULT_SETTINGS: OutlookMeetingNotesSettings = {
 	notesFolder: '',
 	invalidFilenameCharReplacement: '',
 	fileNamePattern: OutlookMeetingNotesDefaultFilenamePattern,
-	notesTemplate: OutlookMeetingNotesDefaultTemplate
+	notesTemplate: OutlookMeetingNotesDefaultTemplate,
+	recipientsAsWikiLinks: false
 }
 
 export default class OutlookMeetingNotes extends Plugin {
@@ -61,6 +63,13 @@ export default class OutlookMeetingNotes extends Plugin {
 			// Add helper field for the current date and time
 			let fileData = origFileData as any;
 			fileData.helper_currentDT = moment().format();
+
+			if (this.settings.recipientsAsWikiLinks && fileData.recipients) {
+				fileData.recipients = fileData.recipients.map((r: any) => ({
+					...r,
+					name: r.name ? '[[' + r.name + ']]' : r.name
+				}));
+			}
 
 			let folderPath = this.settings.notesFolder;
 			if (folderPath == '') { folderPath = '/'; }
@@ -365,6 +374,16 @@ class OutlookMeetingNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		new Setting(containerEl)
+			.setName('Recipients as wiki links')
+			.setDesc('When enabled, recipient names are wrapped in [[]] to create Obsidian wiki links.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.recipientsAsWikiLinks)
+				.onChange(async (value) => {
+					this.plugin.settings.recipientsAsWikiLinks = value;
+					await this.plugin.saveSettings();
+				}));
+		
 		new Setting(containerEl)
 			.setDesc((() => {
 				const df = document.createDocumentFragment();

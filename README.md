@@ -143,3 +143,9 @@ meeting-recipients:
   - {{#helper_firstWord}}{{name}}{{/helper_firstWord}}
 {{/recipients}}
 ```
+
+### Recipients as wiki links
+Toggle to wrap the name of the recipient(s) in wiki link style square brackets. 
+Can be usefull for people who manage their contacts in obsidian.
+
+
