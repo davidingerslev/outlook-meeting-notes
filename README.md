@@ -133,6 +133,11 @@ For recurring meetings only, the start and end of the occurrence you selected in
 picker (ISO date/time). These are not set for non-recurring meetings — if you need a
 field that is always present, use [apptBestStart / apptBestEnd](#apptbeststart--apptbestend).
 
+For recurring meetings, when you select an occurrence the standard `apptStartWhole` and
+`apptEndWhole` fields are also updated to point at the selected occurrence, so existing
+filename patterns and templates automatically use the occurrence you chose. The original
+series start/end remain available as `apptSeriesStartWhole` / `apptSeriesEndWhole`.
+
 #### apptIsRecurring
 `true` when the dropped meeting is part of a recurring series, otherwise `false`. This can
 be used in a section to include extra content only for recurring meetings:

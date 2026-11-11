@@ -118,6 +118,16 @@ export default class OutlookMeetingNotes extends Plugin {
 			if (selected) {
 				fileData.apptSelectedStartWhole = selected.start.toISOString();
 				fileData.apptSelectedEndWhole = selected.end.toISOString();
+
+				// Preserve the original series start/end under dedicated fields...
+				fileData.apptSeriesStartWhole = fileData.apptStartWhole;
+				fileData.apptSeriesEndWhole = fileData.apptEndWhole;
+				// ...then point the standard start/end at the chosen occurrence,
+				// so that existing filename patterns and templates that use
+				// apptStartWhole / apptEndWhole automatically pick up the
+				// selected occurrence (not the first one in the series).
+				fileData.apptStartWhole = fileData.apptSelectedStartWhole;
+				fileData.apptEndWhole = fileData.apptSelectedEndWhole;
 			}
 			fileData.apptBestStart = fileData.apptSelectedStartWhole ?? fileData.apptStartWhole;
 			fileData.apptBestEnd = fileData.apptSelectedEndWhole ?? fileData.apptEndWhole;
