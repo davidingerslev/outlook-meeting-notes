@@ -39,6 +39,30 @@ export interface Occurrence {
 	end: Date;
 }
 
+/** An occurrence prepared for display/selection in the picker. */
+export interface OccurrenceChoice {
+	start: Date;
+	end: Date;
+	/** True for the pre-selected "next upcoming" occurrence. */
+	isNext: boolean;
+	/** True if this occurrence lies entirely in the past. */
+	isPast: boolean;
+	/** Human-readable label shown in the picker. */
+	label: string;
+}
+
+/** Signature for formatting an occurrence into a display label. */
+export type OccurrenceLabelFormatter = (occ: Occurrence, isNext: boolean) => string;
+
+interface BuildChoiceOptions {
+	/** How many past occurrences to keep in the window (default 3). */
+	pastCount?: number;
+	/** How many upcoming occurrences to keep in the window (default 10). */
+	upcomingCount?: number;
+	/** Custom label formatter. Defaults to a plain toString-based label. */
+	labelFormatter?: OccurrenceLabelFormatter;
+}
+
 // Day-of-week bit masks as defined by PatternTypeWeek / PatternTypeMonthNth.
 const DOW_BITS: number[] = [
 	0x01, // Sunday
@@ -128,6 +152,84 @@ export function expandOccurrences(
 
 	occurrences.sort((a, b) => a.start.getTime() - b.start.getTime());
 	return occurrences;
+}
+
+/** Default label: ISO-ish date/time without external dependencies. */
+function defaultLabel(occ: Occurrence): string {
+	const d = occ.start;
+	const pad = (n: number) => `${n}`.padStart(2, '0');
+	return (
+		`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+		`${pad(d.getHours())}:${pad(d.getMinutes())}`
+	);
+}
+
+/**
+ * Turn a full list of occurrences into a bounded, display-ready choice list
+ * for the picker.
+ *
+ * Behaviour (per PLAN.md):
+ * - Keeps a small number of recent past occurrences plus the next upcoming
+ *   ones, so a note can also be back-filled.
+ * - The "next upcoming" occurrence (first with `end >= now`) is flagged
+ *   `isNext` and placed as the FIRST entry, so that pressing Enter in the
+ *   picker selects it by default.
+ * - If the whole series is in the past, the last occurrence becomes the
+ *   pre-selected one.
+ * - Remaining occurrences follow in chronological order.
+ *
+ * @param occurrences Chronologically sorted occurrences (as from
+ *                    {@link expandOccurrences}).
+ * @param now         Reference "now".
+ */
+export function buildChoiceList(
+	occurrences: Occurrence[],
+	now: Date = new Date(),
+	options: BuildChoiceOptions = {},
+): OccurrenceChoice[] {
+	if (occurrences.length === 0) {
+		return [];
+	}
+
+	const pastCount = options.pastCount ?? 3;
+	const upcomingCount = options.upcomingCount ?? 10;
+	const labelFormatter = options.labelFormatter;
+	const nowMs = now.getTime();
+
+	// Ensure chronological order (defensive; expandOccurrences already sorts).
+	const sorted = [...occurrences].sort(
+		(a, b) => a.start.getTime() - b.start.getTime(),
+	);
+
+	// Index of the next upcoming/ongoing occurrence (end >= now).
+	let nextIndex = sorted.findIndex((o) => o.end.getTime() >= nowMs);
+	if (nextIndex === -1) {
+		// Entire series is in the past: pre-select the last occurrence.
+		nextIndex = sorted.length - 1;
+	}
+
+	// Window: a few past occurrences + the upcoming ones around nextIndex.
+	const windowStart = Math.max(0, nextIndex - pastCount);
+	const windowEnd = Math.min(sorted.length, nextIndex + upcomingCount);
+	const windowed = sorted.slice(windowStart, windowEnd);
+
+	const nextOccurrence = sorted[nextIndex];
+
+	const toChoice = (occ: Occurrence): OccurrenceChoice => {
+		const isNext = occ === nextOccurrence;
+		return {
+			start: occ.start,
+			end: occ.end,
+			isNext,
+			isPast: occ.end.getTime() < nowMs,
+			label: labelFormatter ? labelFormatter(occ, isNext) : defaultLabel(occ),
+		};
+	};
+
+	// Put the pre-selected (next) occurrence first so Enter selects it, then
+	// the rest in chronological order.
+	const rest = windowed.filter((o) => o !== nextOccurrence).map(toChoice);
+	return [toChoice(nextOccurrence), ...rest];
 }
 
 /**

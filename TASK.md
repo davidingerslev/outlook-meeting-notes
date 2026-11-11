@@ -36,17 +36,17 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 2 – Fenster- und Vorauswahl-Logik
+## Task 2 – Fenster- und Vorauswahl-Logik `[x]`
 
 **Ziel:** Aus der vollen Instanzliste das Anzeigefenster und die vorausgewählte Instanz bilden.
 
-- [ ] Funktion `buildChoiceList(occurrences, now)`:
-  - [ ] einige vergangene Instanzen (z. B. letzte 2–3) einbeziehen
-  - [ ] nächste ~10 kommende Instanzen einbeziehen
-  - [ ] nächste anstehende Instanz (`end >= now`) bestimmen
-  - [ ] Fallback auf letzte Instanz, wenn Serie abgelaufen
-  - [ ] Liste so sortieren, dass die nächste Instanz **erster Eintrag** ist (= Enter-Vorauswahl)
-  - [ ] `isNext`-Flag und lesbares `label` (via `moment`, inkl. Wochentag) setzen
+- [x] Funktion `buildChoiceList(occurrences, now)`:
+  - [x] einige vergangene Instanzen (Default 3) einbeziehen
+  - [x] nächste ~10 kommende Instanzen einbeziehen (Default 10)
+  - [x] nächste anstehende Instanz (`end >= now`) bestimmen
+  - [x] Fallback auf letzte Instanz, wenn Serie abgelaufen
+  - [x] Liste so sortieren, dass die nächste Instanz **erster Eintrag** ist (= Enter-Vorauswahl)
+  - [x] `isNext`-Flag, `isPast`-Flag und lesbares `label` (injizierbarer Formatter) setzen
 
 **Abhängigkeiten:** Task 1
 **Verifikation:** `npm run build`; manuelle Prüfung der Reihenfolge/Labels.
@@ -151,3 +151,11 @@ kurzer Eintrag ergänzt.
   fehlerfrei. Logik mit 5 Fällen (weekly, daily step2, monthly day15, deleted instance,
   monthly 2nd Tuesday) manuell verifiziert – alle korrekt. Bekannte Grenze: Zeitzonen werden
   als lokale Zeit behandelt (siehe PLAN.md).
+- **Task 2 abgeschlossen** – `buildChoiceList` in `recurrence.ts` ergänzt, plus Typen
+  `OccurrenceChoice`/`OccurrenceLabelFormatter`. Bildet aus den expandierten Instanzen ein
+  Fenster (Default 3 vergangene + 10 kommende), bestimmt die nächste anstehende Instanz
+  (`end >= now`, Fallback letzte Instanz bei abgelaufener Serie) und stellt sie als ersten
+  Listeneintrag mit `isNext` voran, damit Enter sie wählt. `isPast` markiert vergangene
+  Instanzen. Label-Formatierung über injizierbaren Formatter (Default ohne Fremdabhängigkeit),
+  sodass `main.ts` später `moment` einsetzen kann, das Modul aber testbar bleibt. `tsc`
+  fehlerfrei; 4 Fälle (vor/mitten/nach Serie, leer) manuell verifiziert – korrekt.
