@@ -13,11 +13,24 @@ Outlook or on Microsoft 365 administrators authorising an app to connect to the
 Microsoft Graph API.
 
 Note about recurring meetings or appointments: Microsoft Outlook does not include
-any fields that indicate which of the recurring appointments has been dragged-and-dropped,
-so it is not possible to differentiate between them. This means that the start date/time 
-of the first appointment in the recurring series will be used by default. You may wish
-to change the filename template to include the current date/time instead (or as well)
-using the helper field [helper_currentDT](#helper_currentDT).
+any fields that indicate which of the recurring appointments has been dragged-and-dropped.
+To handle this, when you drop a recurring meeting the plugin reads the recurrence
+pattern from the .msg file, works out the individual occurrences, and shows a picker
+so you can choose which occurrence the note is for. The **next upcoming occurrence is
+pre-selected**, so you can just press <kbd>Enter</kbd> to create a note for it. A few
+recent past occurrences are also offered in case you are back-filling notes. The chosen
+occurrence's date/time is made available to the filename pattern and template via the
+[apptBestStart](#apptbeststart--apptbestend) field (used by the default pattern), as well
+as [apptSelectedStartWhole/apptSelectedEndWhole](#apptselectedstartwhole--apptselectedendwhole).
+
+Non-recurring appointments are created directly, without a picker, exactly as before.
+
+Known limitations for recurring meetings:
+- Occurrence times are computed in the current machine's local time; around daylight-saving
+  changes a computed time may be off by an hour.
+- For a series with no end date, only a limited window of upcoming occurrences is offered.
+- Cancelled occurrences are omitted and rescheduled (exception) occurrences are shown at
+  their new time, based on the recurrence data stored in the .msg file.
 
 The plugin relies on the wonderful [msgreader](https://github.com/HiraokaHyperTools/msgreader),
 [mustache.js](https://github.com/janl/mustache.js), and
@@ -51,13 +64,16 @@ will be created (including any parent folders, if you set it as a subfolder like
 The pattern that will be used to create filenames, using [mustache syntax](https://mustache.github.io/mustache.5.html).
 The default pattern is:
 ```
-{{#helper_dateFormat}}{{apptStartWhole}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}
+{{#helper_dateFormat}}{{apptBestStart}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}
 ```
 This will produce filenames like `2025-03-09 10.31 Discuss documentation`.
+(`apptBestStart` is the start of the occurrence you chose for a recurring meeting,
+or the appointment start for a non-recurring meeting — see
+[apptBestStart](#apptbeststart--apptbestend).)
 
 The filename pattern can be used to create folders by using the `/` character. For example:
 ```
-{{#helper_dateFormat}}{{apptStartWhole}}|YYYY/MM MMMM/YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}
+{{#helper_dateFormat}}{{apptBestStart}}|YYYY/MM MMMM/YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}
 ```
 This would create a folder for the year, a sub-folder for the month and then a file in that sub-folder:
 `2025/03 March/2025-03-09 10.31 Discuss documentation`
@@ -85,7 +101,7 @@ The default template for notes is:
 ---
 title: {{subject}}
 subtitle: meeting notes
-date: {{#helper_dateFormat}}{{apptStartWhole}}|L LT{{/helper_dateFormat}}
+date: {{#helper_dateFormat}}{{apptBestStart}}|L LT{{/helper_dateFormat}}
 meeting: 'true'
 meeting-location: {{apptLocation}}
 meeting-recipients:
@@ -97,7 +113,32 @@ meeting-invite: {{body}}
 ```
 
 ### Helper fields for templates
-There is currently only one helper field available:
+In addition to all the standard .msg fields, the plugin adds some extra fields.
+
+#### apptBestStart / apptBestEnd
+The start and end of the appointment that the note is for, as an ISO date/time.
+
+For a recurring meeting this is the occurrence you selected in the picker; for a
+non-recurring meeting it is the same as `apptStartWhole` / `apptEndWhole`. The default
+filename pattern and template use `apptBestStart`, so recurring-meeting notes are named
+and dated for the occurrence you chose rather than the first occurrence in the series.
+
+Use [helper_dateFormat](#helper_dateformat) to format it:
+```
+{{#helper_dateFormat}}{{apptBestStart}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}}
+```
+
+#### apptSelectedStartWhole / apptSelectedEndWhole
+For recurring meetings only, the start and end of the occurrence you selected in the
+picker (ISO date/time). These are not set for non-recurring meetings — if you need a
+field that is always present, use [apptBestStart / apptBestEnd](#apptbeststart--apptbestend).
+
+#### apptIsRecurring
+`true` when the dropped meeting is part of a recurring series, otherwise `false`. This can
+be used in a section to include extra content only for recurring meetings:
+```
+{{#apptIsRecurring}}recurring: 'true'{{/apptIsRecurring}}
+```
 
 #### helper_currentDT
 The date and time at which the meeting was dragged-and-dropped onto the icon, 

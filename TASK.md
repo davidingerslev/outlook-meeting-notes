@@ -114,15 +114,15 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 7 – Dokumentation (README)
+## Task 7 – Dokumentation (README) `[x]`
 
 **Ziel:** Nutzerdoku aktualisieren.
 
-- [ ] „Note about recurring meetings"-Absatz aktualisieren (Popup + Vorauswahl)
-- [ ] Neue Felder dokumentieren (`apptSelectedStartWhole`/`End`, `apptBestStart`/`End`,
+- [x] „Note about recurring meetings"-Absatz aktualisiert (Popup + Vorauswahl)
+- [x] Neue Felder dokumentiert (`apptSelectedStartWhole`/`End`, `apptBestStart`/`End`,
       `apptIsRecurring`)
-- [ ] Empfehlung `apptBestStart` im Dateinamenmuster
-- [ ] Bekannte Grenzen (Zeitzonen, unendliche Serien, Ausnahmen) ergänzen
+- [x] Standard-Dateinamenmuster/Template im README auf `apptBestStart` angepasst
+- [x] Bekannte Grenzen (Zeitzonen, unendliche Serien, Ausnahmen) ergänzt
 
 **Abhängigkeiten:** Task 5
 **Verifikation:** README liest sich konsistent zum Verhalten.
@@ -188,3 +188,8 @@ kurzer Eintrag ergänzt.
   und `.omn-past-hint` (gedämpft, `--text-muted`) ergänzt, beide mit `--font-smaller`. Nutzt
   Theme-Variablen → passt sich Light/Dark an. styles.css wird nicht gebündelt, sondern direkt
   ausgeliefert; optische Prüfung erfolgt in Task 8.
+- **Task 7 abgeschlossen** – README aktualisiert: „recurring meetings"-Absatz beschreibt jetzt
+  das Picker-Popup mit Vorauswahl der nächsten Instanz; Standard-Dateinamenmuster/Template auf
+  `apptBestStart` angepasst; neue Felder `apptBestStart`/`apptBestEnd`,
+  `apptSelectedStartWhole`/`End`, `apptIsRecurring` unter „Helper fields" dokumentiert; Abschnitt
+  „Known limitations" (Zeitzonen, unendliche Serien, Ausnahmen) ergänzt. Anker-Links geprüft.
