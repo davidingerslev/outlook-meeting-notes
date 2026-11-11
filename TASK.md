@@ -69,18 +69,20 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 4 – Umbau `createMeetingNote` auf Callback-Ablauf
+## Task 4 – Umbau `createMeetingNote` auf Callback-Ablauf `[x]`
 
 **Ziel:** Trennung von Datenaufbereitung, Auswahl und Dateierzeugung.
 
-- [ ] Datenaufbereitung (`dataType`/`messageClass`-Check, `addHelperFunctions`,
+- [x] Datenaufbereitung (`dataType`/`messageClass`-Check, `addHelperFunctions`,
       `helper_currentDT`) wie bisher
-- [ ] Weiche: kein `apptRecur` → direkt; mit `apptRecur` → Popup
-- [ ] Dateierzeugung in `finalizeMeetingNote(fileData, chosenStart, chosenEnd)` auslagern
-- [ ] Felder setzen: `apptSelectedStartWhole`, `apptSelectedEndWhole`, `apptIsRecurring`,
+- [x] Weiche: kein `apptRecur` → direkt; mit `apptRecur` → Popup
+- [x] Dateierzeugung in `finalizeMeetingNote(fileData, selected)` ausgelagert
+- [x] Felder setzen: `apptSelectedStartWhole`, `apptSelectedEndWhole`, `apptIsRecurring`,
       `apptBestStart`, `apptBestEnd`
-- [ ] Fehler-/`Notice`-Pfad im asynchronen Callback erhalten
-- [ ] Bestehende Felder (`apptStartWhole` etc.) unverändert lassen (keine Breaking Changes)
+- [x] Fehler-/`Notice`-Pfad im asynchronen Callback erhalten (in `finalizeMeetingNote`)
+- [x] Bestehende Felder (`apptStartWhole` etc.) unverändert lassen (keine Breaking Changes)
+- [x] Fallback: keine berechenbaren Instanzen → Notiz aus Originalstart erzeugen
+- [x] `formatOccurrenceLabel` via `moment` (locale-aware) als Label-Formatter
 
 **Abhängigkeiten:** Task 3
 **Verifikation:** `npm run build`; manueller Test für Einzel- und Serientermin.
@@ -166,3 +168,12 @@ kurzer Eintrag ergänzt.
   `picked`). Tastatur-Instruktionen gesetzt. CSS-Klassen `omn-next-hint`/`omn-past-hint` folgen
   in Task 6. `npm run build` fehlerfrei (`Instruction`-Shape `{command,purpose}` passt).
   Hinweis: Modal-Verhalten wird in Task 8 manuell in Obsidian getestet.
+- **Task 4 abgeschlossen** – `createMeetingNote` aufgeteilt: Datenaufbereitung + Weiche
+  (Serie → `OccurrencePickerModal` öffnen und `return`; sonst direkt), Dateierzeugung in
+  neues `finalizeMeetingNote(fileData, selected)` ausgelagert. Setzt `apptIsRecurring`,
+  `apptSelectedStartWhole/End` (bei Auswahl) und `apptBestStart/End` (Fallback auf
+  `apptStartWhole/End`). Originalfelder unverändert. Fehler-/Notice-Handling in beiden
+  Methoden erhalten (Callback ist fire-and-forget mit eigenem try/catch). Abbruch → Notice,
+  keine Notiz. Fallback bei nicht berechenbaren Instanzen → Notiz aus Originalstart.
+  `formatOccurrenceLabel` nutzt `moment` (locale-aware) für die Picker-Labels. `npm run build`
+  fehlerfrei.

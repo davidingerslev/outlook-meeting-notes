@@ -3,7 +3,7 @@ import MsgReader from '@kenjiuno/msgreader';
 import proxyData from 'mustache-validator';
 import Mustache from 'mustache';
 import moment from 'moment';
-import { OccurrenceChoice } from './recurrence';
+import { OccurrenceChoice, Occurrence, expandOccurrences, buildChoiceList } from './recurrence';
 
 const OutlookMeetingNotesDefaultFilenamePattern =
 	'{{#helper_dateFormat}}{{apptStartWhole}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}';
@@ -43,8 +43,6 @@ export default class OutlookMeetingNotes extends Plugin {
 
 	async createMeetingNote(msg: MsgReader) {
 		try {
-			const { vault } = this.app;
-
 			// Get the file data from MsgReader
 			const origFileData = msg.getFileData();
 
@@ -62,6 +60,67 @@ export default class OutlookMeetingNotes extends Plugin {
 			// Add helper field for the current date and time
 			let fileData = origFileData as any;
 			fileData.helper_currentDT = moment().format();
+
+			// Recurring appointments: let the user pick which occurrence this
+			// note is for. The picker pre-selects the next upcoming occurrence.
+			// Non-recurring appointments are created directly.
+			const apptRecur = fileData.apptRecur;
+			if (apptRecur) {
+				const now = new Date();
+				const occurrences = expandOccurrences(apptRecur, now);
+				const choices = buildChoiceList(occurrences, now, {
+					labelFormatter: (occ) => this.formatOccurrenceLabel(occ),
+				});
+
+				if (choices.length > 0) {
+					const modal = new OccurrencePickerModal(
+						this.app,
+						choices,
+						(choice) => {
+							// Fire-and-forget: finalize handles its own errors/notices.
+							void this.finalizeMeetingNote(fileData, {
+								start: choice.start,
+								end: choice.end,
+							});
+						},
+						() => {
+							new Notice('Outlook Meeting Notes: cancelled, no note created');
+						},
+					);
+					modal.open();
+					return;
+				}
+				// No occurrences could be computed (e.g. unsupported pattern):
+				// fall through and create the note from the original start/end.
+			}
+
+			await this.finalizeMeetingNote(fileData, null);
+		} catch (ee: unknown) {
+			// TODO: Handle errors reasonably -- differently between msg missing elements and errors creating file
+			if (ee instanceof Error) { new Notice('Error (' + ee.name + '):\n' + ee.message); }
+			throw ee;
+		}
+	}
+
+	/**
+	 * Create (or open) the meeting note for the given, already-prepared
+	 * fileData. When `selected` is provided it is the occurrence chosen in the
+	 * picker; its start/end are exposed to templates via the appt*Selected and
+	 * apptBest* fields. Original fields (apptStartWhole etc.) are left intact.
+	 */
+	async finalizeMeetingNote(fileData: any, selected: Occurrence | null) {
+		try {
+			const { vault } = this.app;
+
+			// Expose the selected occurrence (if any) plus convenience "best"
+			// fields that fall back to the original single-instance values.
+			fileData.apptIsRecurring = Boolean(fileData.apptRecur);
+			if (selected) {
+				fileData.apptSelectedStartWhole = selected.start.toISOString();
+				fileData.apptSelectedEndWhole = selected.end.toISOString();
+			}
+			fileData.apptBestStart = fileData.apptSelectedStartWhole ?? fileData.apptStartWhole;
+			fileData.apptBestEnd = fileData.apptSelectedEndWhole ?? fileData.apptEndWhole;
 
 			let folderPath = this.settings.notesFolder;
 			if (folderPath == '') { folderPath = '/'; }
@@ -103,6 +162,16 @@ export default class OutlookMeetingNotes extends Plugin {
 			if (ee instanceof Error) { new Notice('Error (' + ee.name + '):\n' + ee.message); }
 			throw ee;
 		}
+	}
+
+	/** Format an occurrence for display in the picker, using moment + locale. */
+	formatOccurrenceLabel(occ: Occurrence): string {
+		const start = moment(occ.start);
+		const end = moment(occ.end);
+		const sameDay = start.isSame(end, 'day');
+		// e.g. "Mon 09/03/2025 10:00–11:00" (locale-aware date/time)
+		const endStr = sameDay ? end.format('LT') : end.format('ddd L LT');
+		return `${start.format('ddd L LT')}–${endStr}`;
 	}
 
 	// Custom funciton to handle a file being dropped onto the ribbon icon.
