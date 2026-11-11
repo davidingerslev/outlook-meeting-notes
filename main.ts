@@ -41,7 +41,9 @@ export default class OutlookMeetingNotes extends Plugin {
 
 	//TODO: Add functionality to export meeting notes nicely
 
-	async createMeetingNote(msg: MsgReader) {
+	async createMeetingNote(msg: MsgReader, loadingNotice?: Notice) {
+		// Ensure the loading notice is always dismissed, whatever path we take.
+		const hideLoading = () => { if (loadingNotice) { loadingNotice.hide(); } };
 		try {
 			// Get the file data from MsgReader
 			const origFileData = msg.getFileData();
@@ -87,6 +89,9 @@ export default class OutlookMeetingNotes extends Plugin {
 							new Notice('Outlook Meeting Notes: cancelled, no note created');
 						},
 					);
+					// The occurrences are ready; dismiss the loading notice just
+					// before showing the picker.
+					hideLoading();
 					modal.open();
 					return;
 				}
@@ -94,8 +99,10 @@ export default class OutlookMeetingNotes extends Plugin {
 				// fall through and create the note from the original start/end.
 			}
 
+			hideLoading();
 			await this.finalizeMeetingNote(fileData, null);
 		} catch (ee: unknown) {
+			hideLoading();
 			// TODO: Handle errors reasonably -- differently between msg missing elements and errors creating file
 			if (ee instanceof Error) { new Notice('Error (' + ee.name + '):\n' + ee.message); }
 			throw ee;
@@ -197,21 +204,34 @@ export default class OutlookMeetingNotes extends Plugin {
 			}
 			else {
 				// One file was dropped, hand it over to createMeetingNote
+
+				// Show an immediate, persistent loading notice so the user gets
+				// feedback that the drop worked and work is in progress. It is
+				// dismissed by createMeetingNote once the picker opens or the
+				// note is created (or on error below).
+				const loadingNotice = new Notice('Outlook Meeting Notes: reading meeting…', 0);
+
 				const droppedFile = droppedFiles[0];
 
 				const fr = new FileReader();
 				fr.onload = () => {
 					if (fr.result == null) {
+						loadingNotice.hide();
 						throw new ReferenceError('Outlook Meeting Notes cannot handle the DragEvent. The FileReader had '
 							+ 'a null result property, which should not be possible.');
 					} else if (!(fr.result instanceof ArrayBuffer)) {
+						loadingNotice.hide();
 						throw new TypeError('Outlook Meeting Notes cannot handle the DragEvent. The FileReader result '
 							+ 'property was not an ArrayBuffer, which should be impossible.');
 					} else {
 						// As readAsArrayBuffer is being used, below, fr.result will be an ArrayBuffer.
 						const msgRdr = new MsgReader(fr.result);
-						this.createMeetingNote(msgRdr);
+						this.createMeetingNote(msgRdr, loadingNotice);
 					}
+				}
+				fr.onerror = () => {
+					loadingNotice.hide();
+					new Notice('Outlook Meeting Notes: could not read the dropped file');
 				}
 				fr.readAsArrayBuffer(droppedFile)
 			}
