@@ -103,11 +103,11 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 6 – Styles
+## Task 6 – Styles `[x]`
 
 **Ziel:** Vorauswahl sichtbar machen.
 
-- [ ] CSS-Regel für `omn-next-hint` in `styles.css` (dezent, Akzentfarbe)
+- [x] CSS-Regeln für `omn-next-hint` (Akzentfarbe) und `omn-past-hint` (gedämpft) in `styles.css`
 
 **Abhängigkeiten:** Task 3
 **Verifikation:** optische Prüfung in Obsidian.
@@ -184,3 +184,7 @@ kurzer Eintrag ergänzt.
   bestätigt: Serientermin → Dateiname/Datum zeigen die **gewählte** Instanz (Jan 19 statt
   Serienstart Jan 5); Einzeltermin → Fallback auf Originalstart. `helper_dateFormat` arbeitet
   unverändert mit den neuen Feldern. `npm run build` fehlerfrei.
+- **Task 6 abgeschlossen** – `styles.css` um `.omn-next-hint` (Akzentfarbe, `--text-accent`)
+  und `.omn-past-hint` (gedämpft, `--text-muted`) ergänzt, beide mit `--font-smaller`. Nutzt
+  Theme-Variablen → passt sich Light/Dark an. styles.css wird nicht gebündelt, sondern direkt
+  ausgeliefert; optische Prüfung erfolgt in Task 8.

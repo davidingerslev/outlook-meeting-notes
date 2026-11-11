@@ -10,3 +10,14 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--background-modifier-hover);
 	color: var(--interactive-accent-hover);
 }
+
+/* Hints shown under occurrences in the recurring-appointment picker. */
+.omn-next-hint {
+	font-size: var(--font-smaller);
+	color: var(--text-accent);
+}
+
+.omn-past-hint {
+	font-size: var(--font-smaller);
+	color: var(--text-muted);
+}
