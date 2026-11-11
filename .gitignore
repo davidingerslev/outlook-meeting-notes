@@ -20,3 +20,6 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# Transient bundle produced by the recurrence test runner
+._recurrence.test.bundle.mjs

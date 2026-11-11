@@ -129,16 +129,16 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 8 – Verifikation & manueller Abschlusstest
+## Task 8 – Verifikation & manueller Abschlusstest `[x]`
 
 **Ziel:** Gesamtfunktion sicherstellen.
 
-- [ ] `npm run build` fehlerfrei
-- [ ] Optional: isoliertes Testsetup (z. B. Vitest) für `expandOccurrences` mit Fixtures
-- [ ] Manueller Test: Serientermin → Popup, nächste Instanz oben & markiert, Enter erzeugt
-      korrekte Notiz
-- [ ] Manueller Test: Einzeltermin → kein Popup, Verhalten unverändert
-- [ ] Temporäre Dateien/Testartefakte aufräumen
+- [x] `npm run build` fehlerfrei
+- [x] Isoliertes Testsetup für `expandOccurrences`/`buildChoiceList` – ohne neue Abhängigkeit
+      via `node --test` + esbuild-Transpile (`recurrence.test.mjs`, `npm test`), 12 Tests grün
+- [x] Temporäre Dateien/Testartefakte aufgeräumt (Test-Bundle self-cleaning + gitignored)
+- [ ] Manueller Test in Obsidian: Serientermin → Popup/Vorauswahl; Einzeltermin → kein Popup
+      **(nicht in dieser Umgebung durchführbar – kein Obsidian-Runtime; siehe Hinweis unten)**
 
 **Abhängigkeiten:** Tasks 1–7
 
@@ -193,3 +193,15 @@ kurzer Eintrag ergänzt.
   `apptBestStart` angepasst; neue Felder `apptBestStart`/`apptBestEnd`,
   `apptSelectedStartWhole`/`End`, `apptIsRecurring` unter „Helper fields" dokumentiert; Abschnitt
   „Known limitations" (Zeitzonen, unendliche Serien, Ausnahmen) ergänzt. Anker-Links geprüft.
+- **Task 8 abgeschlossen (bis auf manuellen Obsidian-Test)** – Testsuite `recurrence.test.mjs`
+  ergänzt (`npm test` → `node --test`, kein neues Dependency; esbuild transpiliert `recurrence.ts`
+  und stubt den type-only msgreader-Import). 12 Tests grün: weekly/daily/monthly/nth-weekday,
+  gelöschte Instanzen, Ausnahmen (Verschiebung), Begrenzung unendlicher Serien, sowie
+  `buildChoiceList` (Vorauswahl zuerst, `isPast`, abgelaufene Serie, leer, custom Formatter).
+  `npm run build` fehlerfrei. Keine Restartefakte (Test-Bundle self-cleaning + in `.gitignore`).
+  **Offen:** Manueller Test in einer echten Obsidian-Instanz (Drag&Drop eines Serientermins →
+  Popup mit Vorauswahl; Einzeltermin → kein Popup; Styles optisch). In dieser Umgebung nicht
+  möglich (kein Obsidian-Runtime) – vom Nutzer durchzuführen.
+- **ESLint-Hinweis:** Das Projekt nutzt die Legacy-`.eslintrc`; die installierte ESLint-v9
+  erwartet `eslint.config.js`. Linting läuft daher hier nicht (vorbestehende Projektkonfig,
+  nicht Teil dieses Features; `npm run build` ruft eslint ohnehin nicht auf).
