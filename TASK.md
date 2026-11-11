@@ -89,13 +89,14 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 5 – Template-/Dateinamen-Integration
+## Task 5 – Template-/Dateinamen-Integration `[x]`
 
 **Ziel:** Gewählte Instanz standardmäßig in Dateiname/Template nutzbar machen.
 
-- [ ] `apptBestStart`/`apptBestEnd` als bevorzugte Felder bereitstellen (Fallback = Original)
-- [ ] Standard-Dateinamenmuster optional auf `apptBestStart` umstellen (abwärtskompatibel)
-- [ ] Prüfen, dass Mustache-Helper (`helper_dateFormat`) mit den neuen Feldern funktionieren
+- [x] `apptBestStart`/`apptBestEnd` als bevorzugte Felder bereitstellen (Fallback = Original)
+- [x] Standard-Dateinamenmuster auf `apptBestStart` umgestellt (abwärtskompatibel)
+- [x] Standard-Template-`date` auf `apptBestStart` umgestellt
+- [x] Mustache-Helper (`helper_dateFormat`) mit den neuen Feldern verifiziert
 
 **Abhängigkeiten:** Task 4
 **Verifikation:** `npm run build`; erzeugte Notiz zeigt gewähltes Datum.
@@ -177,3 +178,9 @@ kurzer Eintrag ergänzt.
   keine Notiz. Fallback bei nicht berechenbaren Instanzen → Notiz aus Originalstart.
   `formatOccurrenceLabel` nutzt `moment` (locale-aware) für die Picker-Labels. `npm run build`
   fehlerfrei.
+- **Task 5 abgeschlossen** – Standard-Dateinamenmuster und Standard-Template (`date`) auf
+  `apptBestStart` umgestellt (statt `apptStartWhole`). Abwärtskompatibel, da bei Einzelterminen
+  `apptBestStart === apptStartWhole`. Render-Smoke-Test (Mustache + mustache-validator + moment)
+  bestätigt: Serientermin → Dateiname/Datum zeigen die **gewählte** Instanz (Jan 19 statt
+  Serienstart Jan 5); Einzeltermin → Fallback auf Originalstart. `helper_dateFormat` arbeitet
+  unverändert mit den neuen Feldern. `npm run build` fehlerfrei.

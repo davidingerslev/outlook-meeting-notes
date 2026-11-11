@@ -6,12 +6,12 @@ import moment from 'moment';
 import { OccurrenceChoice, Occurrence, expandOccurrences, buildChoiceList } from './recurrence';
 
 const OutlookMeetingNotesDefaultFilenamePattern =
-	'{{#helper_dateFormat}}{{apptStartWhole}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}';
+	'{{#helper_dateFormat}}{{apptBestStart}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}';
 
 const OutlookMeetingNotesDefaultTemplate = `---
 title: {{subject}}
 subtitle: meeting notes
-date: {{#helper_dateFormat}}{{apptStartWhole}}|L LT{{/helper_dateFormat}}
+date: {{#helper_dateFormat}}{{apptBestStart}}|L LT{{/helper_dateFormat}}
 meeting: 'true'
 meeting-location: {{apptLocation}}
 meeting-recipients:
