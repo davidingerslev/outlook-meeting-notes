@@ -45,6 +45,16 @@ export default class OutlookMeetingNotes extends Plugin {
 		// Ensure the loading notice is always dismissed, whatever path we take.
 		const hideLoading = () => { if (loadingNotice) { loadingNotice.hide(); } };
 		try {
+			// msg.getFileData() parses the whole .msg synchronously and can take
+			// a couple of seconds for recurring meetings, blocking the UI thread.
+			// If a loading notice was passed, yield once so the browser can
+			// actually paint it before we start the blocking parse.
+			if (loadingNotice) {
+				await new Promise<void>((resolve) =>
+					window.requestAnimationFrame(() => window.setTimeout(resolve, 0)),
+				);
+			}
+
 			// Get the file data from MsgReader
 			const origFileData = msg.getFileData();
 
