@@ -301,7 +301,15 @@ export default class OutlookMeetingNotes extends Plugin {
 			dateFormat: () => {
 				return function (datetime_format: string, render: any) {
 					const parts = datetime_format.split('|')
-					return moment(render(parts[0]).trim()).format(parts[1]);
+					// The rendered value may have been escaped by the YAML/MD
+					// escaper (e.g. an ISO date like 2026-01-19T10:00:00.000Z
+					// contains ':' and gets wrapped in quotes). Strip surrounding
+					// quotes and unescape so moment can parse the raw date.
+					let dateStr = render(parts[0]).trim();
+					if (dateStr.length >= 2 && dateStr.startsWith('"') && dateStr.endsWith('"')) {
+						dateStr = dateStr.slice(1, -1).replaceAll(/\\(["\\])/g, '$1');
+					}
+					return moment(dateStr).format(parts[1]);
 				}
 			}
 		};
