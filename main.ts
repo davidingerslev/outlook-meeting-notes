@@ -1,16 +1,17 @@
-import { App, displayTooltip, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TooltipPlacement, EventRef } from 'obsidian';
+import { App, displayTooltip, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, TooltipPlacement, EventRef } from 'obsidian';
 import MsgReader from '@kenjiuno/msgreader';
 import proxyData from 'mustache-validator';
 import Mustache from 'mustache';
 import moment from 'moment';
+import { OccurrenceChoice, Occurrence, expandOccurrences, buildChoiceList } from './recurrence';
 
 const OutlookMeetingNotesDefaultFilenamePattern =
-	'{{#helper_dateFormat}}{{apptStartWhole}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}';
+	'{{#helper_dateFormat}}{{apptBestStart}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}';
 
 const OutlookMeetingNotesDefaultTemplate = `---
 title: {{subject}}
 subtitle: meeting notes
-date: {{#helper_dateFormat}}{{apptStartWhole}}|L LT{{/helper_dateFormat}}
+date: {{#helper_dateFormat}}{{apptBestStart}}|L LT{{/helper_dateFormat}}
 meeting: 'true'
 meeting-location: {{apptLocation}}
 meeting-recipients:
@@ -42,8 +43,6 @@ export default class OutlookMeetingNotes extends Plugin {
 
 	async createMeetingNote(msg: MsgReader) {
 		try {
-			const { vault } = this.app;
-
 			// Get the file data from MsgReader
 			const origFileData = msg.getFileData();
 
@@ -61,6 +60,77 @@ export default class OutlookMeetingNotes extends Plugin {
 			// Add helper field for the current date and time
 			let fileData = origFileData as any;
 			fileData.helper_currentDT = moment().format();
+
+			// Recurring appointments: let the user pick which occurrence this
+			// note is for. The picker pre-selects the next upcoming occurrence.
+			// Non-recurring appointments are created directly.
+			const apptRecur = fileData.apptRecur;
+			if (apptRecur) {
+				const now = new Date();
+				const occurrences = expandOccurrences(apptRecur, now);
+				const choices = buildChoiceList(occurrences, now, {
+					labelFormatter: (occ) => this.formatOccurrenceLabel(occ),
+				});
+
+				if (choices.length > 0) {
+					const modal = new OccurrencePickerModal(
+						this.app,
+						choices,
+						(choice) => {
+							// Fire-and-forget: finalize handles its own errors/notices.
+							void this.finalizeMeetingNote(fileData, {
+								start: choice.start,
+								end: choice.end,
+							});
+						},
+						() => {
+							new Notice('Outlook Meeting Notes: cancelled, no note created');
+						},
+					);
+					modal.open();
+					return;
+				}
+				// No occurrences could be computed (e.g. unsupported pattern):
+				// fall through and create the note from the original start/end.
+			}
+
+			await this.finalizeMeetingNote(fileData, null);
+		} catch (ee: unknown) {
+			// TODO: Handle errors reasonably -- differently between msg missing elements and errors creating file
+			if (ee instanceof Error) { new Notice('Error (' + ee.name + '):\n' + ee.message); }
+			throw ee;
+		}
+	}
+
+	/**
+	 * Create (or open) the meeting note for the given, already-prepared
+	 * fileData. When `selected` is provided it is the occurrence chosen in the
+	 * picker; its start/end are exposed to templates via the appt*Selected and
+	 * apptBest* fields. Original fields (apptStartWhole etc.) are left intact.
+	 */
+	async finalizeMeetingNote(fileData: any, selected: Occurrence | null) {
+		try {
+			const { vault } = this.app;
+
+			// Expose the selected occurrence (if any) plus convenience "best"
+			// fields that fall back to the original single-instance values.
+			fileData.apptIsRecurring = Boolean(fileData.apptRecur);
+			if (selected) {
+				fileData.apptSelectedStartWhole = selected.start.toISOString();
+				fileData.apptSelectedEndWhole = selected.end.toISOString();
+
+				// Preserve the original series start/end under dedicated fields...
+				fileData.apptSeriesStartWhole = fileData.apptStartWhole;
+				fileData.apptSeriesEndWhole = fileData.apptEndWhole;
+				// ...then point the standard start/end at the chosen occurrence,
+				// so that existing filename patterns and templates that use
+				// apptStartWhole / apptEndWhole automatically pick up the
+				// selected occurrence (not the first one in the series).
+				fileData.apptStartWhole = fileData.apptSelectedStartWhole;
+				fileData.apptEndWhole = fileData.apptSelectedEndWhole;
+			}
+			fileData.apptBestStart = fileData.apptSelectedStartWhole ?? fileData.apptStartWhole;
+			fileData.apptBestEnd = fileData.apptSelectedEndWhole ?? fileData.apptEndWhole;
 
 			let folderPath = this.settings.notesFolder;
 			if (folderPath == '') { folderPath = '/'; }
@@ -102,6 +172,16 @@ export default class OutlookMeetingNotes extends Plugin {
 			if (ee instanceof Error) { new Notice('Error (' + ee.name + '):\n' + ee.message); }
 			throw ee;
 		}
+	}
+
+	/** Format an occurrence for display in the picker, using moment + locale. */
+	formatOccurrenceLabel(occ: Occurrence): string {
+		const start = moment(occ.start);
+		const end = moment(occ.end);
+		const sameDay = start.isSame(end, 'day');
+		// e.g. "Mon 09/03/2025 10:00–11:00" (locale-aware date/time)
+		const endStr = sameDay ? end.format('LT') : end.format('ddd L LT');
+		return `${start.format('ddd L LT')}–${endStr}`;
 	}
 
 	// Custom funciton to handle a file being dropped onto the ribbon icon.
@@ -221,7 +301,15 @@ export default class OutlookMeetingNotes extends Plugin {
 			dateFormat: () => {
 				return function (datetime_format: string, render: any) {
 					const parts = datetime_format.split('|')
-					return moment(render(parts[0]).trim()).format(parts[1]);
+					// The rendered value may have been escaped by the YAML/MD
+					// escaper (e.g. an ISO date like 2026-01-19T10:00:00.000Z
+					// contains ':' and gets wrapped in quotes). Strip surrounding
+					// quotes and unescape so moment can parse the raw date.
+					let dateStr = render(parts[0]).trim();
+					if (dateStr.length >= 2 && dateStr.startsWith('"') && dateStr.endsWith('"')) {
+						dateStr = dateStr.slice(1, -1).replaceAll(/\\(["\\])/g, '$1');
+					}
+					return moment(dateStr).format(parts[1]);
 				}
 			}
 		};
@@ -302,6 +390,71 @@ export default class OutlookMeetingNotes extends Plugin {
 		return output;
 	}
 
+}
+
+/**
+ * A SuggestModal that lets the user pick which occurrence of a recurring
+ * appointment the note should be created for.
+ *
+ * The choices are pre-built by {@link buildChoiceList}, which places the next
+ * upcoming occurrence first. Because SuggestModal highlights the first result
+ * and triggers it on Enter, that gives us the desired "next occurrence is
+ * pre-selected" behaviour with an empty search field.
+ *
+ * If the user dismisses the modal without choosing (Escape / clicking away),
+ * {@link onCancel} is invoked exactly once and no note is created.
+ */
+class OccurrencePickerModal extends SuggestModal<OccurrenceChoice> {
+	private choices: OccurrenceChoice[];
+	private onPick: (choice: OccurrenceChoice) => void;
+	private onCancel: () => void;
+	private picked = false;
+
+	constructor(
+		app: App,
+		choices: OccurrenceChoice[],
+		onPick: (choice: OccurrenceChoice) => void,
+		onCancel: () => void,
+	) {
+		super(app);
+		this.choices = choices;
+		this.onPick = onPick;
+		this.onCancel = onCancel;
+		this.setPlaceholder('Which occurrence of this recurring meeting?');
+		this.setInstructions([
+			{ command: '↑↓', purpose: 'to navigate' },
+			{ command: '↵', purpose: 'to create note for selected occurrence' },
+			{ command: 'esc', purpose: 'to cancel' },
+		]);
+	}
+
+	getSuggestions(query: string): OccurrenceChoice[] {
+		const q = query.trim().toLowerCase();
+		if (!q) { return this.choices; }
+		return this.choices.filter((c) => c.label.toLowerCase().includes(q));
+	}
+
+	renderSuggestion(choice: OccurrenceChoice, el: HTMLElement): void {
+		el.createDiv({ text: choice.label });
+		if (choice.isNext) {
+			el.createDiv({ cls: 'omn-next-hint', text: 'Next occurrence' });
+		} else if (choice.isPast) {
+			el.createDiv({ cls: 'omn-past-hint', text: 'Past' });
+		}
+	}
+
+	onChooseSuggestion(choice: OccurrenceChoice): void {
+		this.picked = true;
+		this.onPick(choice);
+	}
+
+	onClose(): void {
+		super.onClose();
+		// If the modal was closed without a selection, treat it as a cancel.
+		if (!this.picked) {
+			this.onCancel();
+		}
+	}
 }
 
 class OutlookMeetingNotesSettingTab extends PluginSettingTab {
