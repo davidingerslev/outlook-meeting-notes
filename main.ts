@@ -1,8 +1,9 @@
-import { App, displayTooltip, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TooltipPlacement, EventRef } from 'obsidian';
+import { App, displayTooltip, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, TooltipPlacement, EventRef } from 'obsidian';
 import MsgReader from '@kenjiuno/msgreader';
 import proxyData from 'mustache-validator';
 import Mustache from 'mustache';
 import moment from 'moment';
+import { OccurrenceChoice } from './recurrence';
 
 const OutlookMeetingNotesDefaultFilenamePattern =
 	'{{#helper_dateFormat}}{{apptStartWhole}}|YYYY-MM-DD HH.mm{{/helper_dateFormat}} {{subject}}';
@@ -302,6 +303,71 @@ export default class OutlookMeetingNotes extends Plugin {
 		return output;
 	}
 
+}
+
+/**
+ * A SuggestModal that lets the user pick which occurrence of a recurring
+ * appointment the note should be created for.
+ *
+ * The choices are pre-built by {@link buildChoiceList}, which places the next
+ * upcoming occurrence first. Because SuggestModal highlights the first result
+ * and triggers it on Enter, that gives us the desired "next occurrence is
+ * pre-selected" behaviour with an empty search field.
+ *
+ * If the user dismisses the modal without choosing (Escape / clicking away),
+ * {@link onCancel} is invoked exactly once and no note is created.
+ */
+class OccurrencePickerModal extends SuggestModal<OccurrenceChoice> {
+	private choices: OccurrenceChoice[];
+	private onPick: (choice: OccurrenceChoice) => void;
+	private onCancel: () => void;
+	private picked = false;
+
+	constructor(
+		app: App,
+		choices: OccurrenceChoice[],
+		onPick: (choice: OccurrenceChoice) => void,
+		onCancel: () => void,
+	) {
+		super(app);
+		this.choices = choices;
+		this.onPick = onPick;
+		this.onCancel = onCancel;
+		this.setPlaceholder('Which occurrence of this recurring meeting?');
+		this.setInstructions([
+			{ command: '↑↓', purpose: 'to navigate' },
+			{ command: '↵', purpose: 'to create note for selected occurrence' },
+			{ command: 'esc', purpose: 'to cancel' },
+		]);
+	}
+
+	getSuggestions(query: string): OccurrenceChoice[] {
+		const q = query.trim().toLowerCase();
+		if (!q) { return this.choices; }
+		return this.choices.filter((c) => c.label.toLowerCase().includes(q));
+	}
+
+	renderSuggestion(choice: OccurrenceChoice, el: HTMLElement): void {
+		el.createDiv({ text: choice.label });
+		if (choice.isNext) {
+			el.createDiv({ cls: 'omn-next-hint', text: 'Next occurrence' });
+		} else if (choice.isPast) {
+			el.createDiv({ cls: 'omn-past-hint', text: 'Past' });
+		}
+	}
+
+	onChooseSuggestion(choice: OccurrenceChoice): void {
+		this.picked = true;
+		this.onPick(choice);
+	}
+
+	onClose(): void {
+		super.onClose();
+		// If the modal was closed without a selection, treat it as a cancel.
+		if (!this.picked) {
+			this.onCancel();
+		}
+	}
 }
 
 class OutlookMeetingNotesSettingTab extends PluginSettingTab {

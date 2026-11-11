@@ -53,16 +53,16 @@ kurzer Eintrag ergänzt.
 
 ---
 
-## Task 3 – Auswahl-Popup (`OccurrencePickerModal`)
+## Task 3 – Auswahl-Popup (`OccurrencePickerModal`) `[x]`
 
 **Ziel:** `SuggestModal`-basiertes Popup zur Terminauswahl.
 
-- [ ] Klasse `OccurrencePickerModal extends SuggestModal<OccurrenceChoice>`
-- [ ] `getSuggestions` (mit optionaler Textfilterung)
-- [ ] `renderSuggestion` inkl. „Nächster Termin"-Markierung (`omn-next-hint`)
-- [ ] `onChooseSuggestion` → Callback
-- [ ] Placeholder-Text setzen
-- [ ] Verhalten bei Abbruch (Popup ohne Auswahl geschlossen) definieren – keine Notiz erzeugen
+- [x] Klasse `OccurrencePickerModal extends SuggestModal<OccurrenceChoice>`
+- [x] `getSuggestions` (mit optionaler Textfilterung)
+- [x] `renderSuggestion` inkl. „Next occurrence"-Markierung (`omn-next-hint`) + „Past" (`omn-past-hint`)
+- [x] `onChooseSuggestion` → Callback
+- [x] Placeholder-Text + Tastatur-Instruktionen gesetzt
+- [x] Abbruch (Popup ohne Auswahl geschlossen) → `onCancel`-Callback, keine Notiz
 
 **Abhängigkeiten:** Task 2
 **Verifikation:** `npm run build`; manueller Test in Obsidian (Popup öffnet, Liste korrekt).
@@ -159,3 +159,10 @@ kurzer Eintrag ergänzt.
   Instanzen. Label-Formatierung über injizierbaren Formatter (Default ohne Fremdabhängigkeit),
   sodass `main.ts` später `moment` einsetzen kann, das Modul aber testbar bleibt. `tsc`
   fehlerfrei; 4 Fälle (vor/mitten/nach Serie, leer) manuell verifiziert – korrekt.
+- **Task 3 abgeschlossen** – `OccurrencePickerModal` (extends `SuggestModal<OccurrenceChoice>`)
+  in `main.ts` ergänzt, `SuggestModal` + `OccurrenceChoice` importiert. Zeigt die Choice-Liste
+  (nächste Instanz zuerst → Enter-Vorauswahl), markiert „Next occurrence"/„Past", filtert per
+  Suchfeld, ruft `onPick` bzw. bei Abbruch genau einmal `onCancel` (via `onClose`, Guard
+  `picked`). Tastatur-Instruktionen gesetzt. CSS-Klassen `omn-next-hint`/`omn-past-hint` folgen
+  in Task 6. `npm run build` fehlerfrei (`Instruction`-Shape `{command,purpose}` passt).
+  Hinweis: Modal-Verhalten wird in Task 8 manuell in Obsidian getestet.
